@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Object Localization via Deep RL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2d3748;
+        }
+        .presentation-wrapper {
+            width: 1280px;
+            height: 720px;
+            background-color: #ffffff;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            position: relative;
+            overflow: hidden;
+        }
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            padding: 3rem;
+            box-sizing: border-box;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .slide-number {
+            position: absolute;
+            bottom: 1.5rem;
+            right: 2rem;
+            font-size: 1rem;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+        .nav-hint {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 2rem;
+            font-size: 1rem;
+            color: #a0aec0;
+        }
+        .paper-frame {
+            background: #fff;
+            border: 1px solid #d9e2ec;
+            border-radius: 14px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+        }
+        .paper-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .figure-caption {
+            font-size: 0.92rem;
+            color: #475569;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 0.65rem 0.9rem;
+            line-height: 1.35;
+        }
+        .metric-pill {
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            background: #eff6ff;
+            padding: 1rem 1.15rem;
+        }
+        .source-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #075985;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.35rem 0.75rem;
+        }
+        .pipeline-step {
+            display: grid;
+            grid-template-columns: 3rem 1fr;
+            align-items: center;
+            column-gap: 1rem;
+        }
+        .pipeline-arrow {
+            width: 3rem;
+            display: flex;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 1.65rem;
+            line-height: 1;
+        }
+        .loop-node {
+            position: absolute;
+            width: 12rem;
+            text-align: center;
+            z-index: 2;
+        }
+        .loop-card {
+            width: 8rem;
+            height: 8rem;
+            margin: 0 auto 0.5rem auto;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .loop-arrow {
+            position: absolute;
+            color: #cbd5e1;
+            font-size: 2.5rem;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="presentation-wrapper">
+        
+        <!-- Slide 1: Title -->
+        <div class="slide active" id="slide-1">
+            <div class="flex h-full w-full">
+                <div class="w-[56%] h-full flex items-center justify-center pr-10">
+                    <div class="w-full bg-slate-900 text-white rounded-2xl p-8 shadow-2xl">
+                        <p class="text-blue-200 font-bold uppercase tracking-wide mb-4">Core Thesis</p>
+                        <p class="text-4xl font-black leading-tight mb-8">Localization is not only scoring boxes.<br><span class="text-blue-300">It can be a sequence of actions.</span></p>
+                        <div class="grid grid-cols-[1fr_auto_1fr] gap-6 items-center">
+                            <div class="bg-white/10 border border-white/20 rounded-xl p-4">
+                                <p class="text-sm text-slate-300 font-bold mb-3">Before</p>
+                                <p class="text-xl font-black">Evaluate many candidate regions</p>
+                                <div class="grid grid-cols-4 gap-2 mt-4">
+                                    <div class="h-8 rounded border border-slate-400"></div>
+                                    <div class="h-8 rounded border border-slate-400"></div>
+                                    <div class="h-8 rounded border border-slate-400"></div>
+                                    <div class="h-8 rounded border border-slate-400"></div>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right text-3xl text-blue-300"></i>
+                            <div class="bg-blue-500/20 border border-blue-300/40 rounded-xl p-4">
+                                <p class="text-sm text-blue-200 font-bold mb-3">This paper</p>
+                                <p class="text-xl font-black">Move one box through a learned policy</p>
+                                <div class="flex items-center gap-3 mt-4">
+                                    <div class="w-12 h-12 border-2 border-red-400 rounded"></div>
+                                    <i class="fa-solid fa-arrow-right text-blue-200"></i>
+                                    <div class="w-14 h-14 border-2 border-green-300 rounded"></div>
+                                    <div class="w-8 h-8 rounded-full bg-red-500 ml-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-[44%] h-full flex flex-col justify-center pl-10">
+                    <h1 class="text-5xl font-black text-blue-900 leading-tight mb-6">Active Object Localization<br>with Deep Reinforcement Learning</h1>
+                    <h2 class="text-2xl text-gray-500 font-medium mb-12">From Region Evaluation to<br>Policy-Guided Sequential Search</h2>
+                    <div class="grid grid-cols-1 gap-2 text-gray-700 font-medium mb-8">
+                        <p>2026.06.01</p>
+                        <p>chunwoong park</p>
+                        <p>202545335</p>
+                    </div>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r">
+                        <p class="text-blue-800 font-bold text-lg">Can an object detector act instead of evaluating many boxes?</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Presentation Logic -->
+        <div class="slide" id="slide-2">
+            <h2 class="text-4xl font-bold text-gray-800 mb-16 border-b-2 border-blue-500 pb-4 inline-block">The Logic of This Presentation</h2>
+            <div class="flex-1 flex items-center justify-between px-8">
+                <div class="flex flex-col items-center text-center w-48">
+                    <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4 shadow"><i class="fa-solid fa-boxes-stacked text-4xl text-gray-600"></i></div>
+                    <h3 class="font-bold text-lg">Existing</h3>
+                    <p class="text-sm text-gray-500">many candidate regions</p>
+                </div>
+                <i class="fa-solid fa-arrow-right text-3xl text-blue-400"></i>
+                <div class="flex flex-col items-center text-center w-48">
+                    <div class="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-4 shadow"><i class="fa-solid fa-triangle-exclamation text-4xl text-red-500"></i></div>
+                    <h3 class="font-bold text-lg">Problem</h3>
+                    <p class="text-sm text-gray-500">inefficient passive search</p>
+                </div>
+                <i class="fa-solid fa-arrow-right text-3xl text-blue-400"></i>
+                <div class="flex flex-col items-center text-center w-48">
+                    <div class="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4 shadow"><i class="fa-solid fa-location-crosshairs text-4xl text-blue-600"></i></div>
+                    <h3 class="font-bold text-lg">New Idea (RL)</h3>
+                    <p class="text-sm text-gray-500">box movement as actions</p>
+                </div>
+                <i class="fa-solid fa-arrow-right text-3xl text-blue-400"></i>
+                <div class="flex flex-col items-center text-center w-48">
+                    <div class="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mb-4 shadow"><i class="fa-solid fa-chart-line text-4xl text-green-500"></i></div>
+                    <h3 class="font-bold text-lg">Experiment</h3>
+                    <p class="text-sm text-gray-500">fewer regions, directed search</p>
+                </div>
+                <i class="fa-solid fa-arrow-right text-3xl text-blue-400"></i>
+                <div class="flex flex-col items-center text-center w-48">
+                    <div class="w-24 h-24 bg-yellow-50 rounded-full flex items-center justify-center mb-4 shadow"><i class="fa-solid fa-scale-balanced text-4xl text-yellow-600"></i></div>
+                    <h3 class="font-bold text-lg">Evaluation</h3>
+                    <p class="text-sm text-gray-500">efficient, but limited</p>
+                </div>
+            </div>
+            <div class="mt-auto text-center text-xl font-bold text-blue-800 bg-blue-50 py-4 rounded-lg">
+                Main frame: Region Evaluation <i class="fa-solid fa-arrow-right mx-2"></i> Policy-Guided Sequential Search
+            </div>
+        </div>
+
+        <!-- Slide 3: Existing Localization Pipeline -->
+        <div class="slide" id="slide-3">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Before This Paper: Localization as Region Evaluation</h2>
+            <div class="flex h-full gap-12">
+                <div class="w-1/2 bg-gray-100 rounded-xl flex items-center justify-center relative overflow-hidden border border-gray-300">
+                    <i class="fa-solid fa-image text-9xl text-gray-300"></i>
+                    <div class="absolute border border-red-500 w-32 h-32 top-10 left-20 bg-red-500 bg-opacity-10"></div>
+                    <div class="absolute border border-red-500 w-40 h-24 bottom-20 right-10 bg-red-500 bg-opacity-10"></div>
+                    <div class="absolute border border-red-500 w-24 h-48 top-20 right-32 bg-red-500 bg-opacity-10"></div>
+                    <div class="absolute border border-red-500 w-48 h-40 bottom-10 left-10 bg-red-500 bg-opacity-10"></div>
+                    <div class="absolute border border-red-500 w-20 h-20 top-1/2 left-1/2 bg-red-500 bg-opacity-10"></div>
+                </div>
+                <div class="w-1/2 flex flex-col justify-center">
+                    <div class="space-y-3 text-2xl font-medium text-gray-700">
+                        <div class="pipeline-step"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">1</div><div>Image</div></div>
+                        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+                        <div class="pipeline-step"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">2</div><div>Generate candidate boxes</div></div>
+                        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+                        <div class="pipeline-step"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">3</div><div>Extract features</div></div>
+                        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+                        <div class="pipeline-step"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">4</div><div>Classify / rank boxes</div></div>
+                        <div class="pipeline-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+                        <div class="pipeline-step"><div class="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold"><i class="fa-solid fa-check"></i></div><div>Final detection</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Existing Competitors -->
+        <div class="slide" id="slide-4">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">What Is This Paper Competing Against?</h2>
+            <div class="grid grid-cols-3 gap-8 h-full pb-10">
+                <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-8 flex flex-col items-center text-center">
+                    <div class="w-full h-32 bg-gray-100 rounded mb-6 flex items-center justify-center relative">
+                        <div class="grid grid-cols-4 grid-rows-3 gap-1 w-full h-full p-2">
+                            <div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div>
+                            <div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div>
+                            <div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div><div class="border border-gray-400"></div>
+                        </div>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Sliding Window</h3>
+                    <p class="text-gray-600 mb-4">scan many positions</p>
+                    <div class="mt-auto bg-red-50 text-red-600 font-bold py-2 px-4 rounded w-full">exhaustive</div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-8 flex flex-col items-center text-center">
+                    <div class="w-full h-32 bg-gray-100 rounded mb-6 flex items-center justify-center relative">
+                        <div class="absolute border border-gray-500 w-16 h-16 top-2 left-4"></div>
+                        <div class="absolute border border-gray-500 w-20 h-10 bottom-4 right-4"></div>
+                        <div class="absolute border border-gray-500 w-12 h-24 top-4 right-10"></div>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Region Proposal</h3>
+                    <p class="text-gray-600 mb-4">generate candidate boxes</p>
+                    <div class="mt-auto bg-red-50 text-red-600 font-bold py-2 px-4 rounded w-full">proposal bottleneck</div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-8 flex flex-col items-center text-center">
+                    <div class="w-full h-32 bg-gray-100 rounded mb-6 flex items-center justify-center relative">
+                        <i class="fa-solid fa-image text-4xl text-gray-300"></i>
+                        <i class="fa-solid fa-arrow-right mx-4 text-gray-400"></i>
+                        <div class="border-2 border-green-500 w-16 h-16"></div>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">One-shot Regression</h3>
+                    <p class="text-gray-600 mb-4">predict/refine box directly</p>
+                    <div class="mt-auto bg-red-50 text-red-600 font-bold py-2 px-4 rounded w-full">no search process</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Core Problem Definition -->
+        <div class="slide" id="slide-5">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Problem: Too Many Regions, Too Little Decision-Making</h2>
+            <div class="flex h-full items-center gap-8 pb-16">
+                <div class="w-[45%] h-64 bg-gray-100 rounded-xl border border-gray-300 flex flex-col items-center justify-center p-8 text-center">
+                    <h3 class="text-2xl font-bold text-gray-500 mb-4">Old Question</h3>
+                    <p class="text-3xl font-black text-gray-800">Which candidate box<br>is correct?</p>
+                    <div class="mt-6 flex space-x-2">
+                        <div class="w-8 h-8 bg-gray-300 rounded"></div><div class="w-8 h-8 bg-gray-300 rounded"></div><div class="w-8 h-8 bg-gray-300 rounded"></div><div class="w-8 h-8 bg-gray-300 rounded"></div>
+                    </div>
+                </div>
+                <div class="w-[10%] flex justify-center">
+                    <i class="fa-solid fa-arrow-right text-6xl text-blue-500"></i>
+                </div>
+                <div class="w-[45%] h-64 bg-blue-50 rounded-xl border border-blue-300 flex flex-col items-center justify-center p-8 text-center shadow-lg">
+                    <h3 class="text-2xl font-bold text-blue-600 mb-4">New Question</h3>
+                    <p class="text-3xl font-black text-blue-900">What <span class="text-blue-600">action</span> should<br>the agent take next?</p>
+                    <div class="mt-6 flex items-center space-x-4">
+                        <div class="w-10 h-10 border-2 border-red-500 rounded"></div>
+                        <i class="fa-solid fa-arrow-right text-blue-400"></i>
+                        <div class="w-12 h-12 border-2 border-red-500 rounded"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-auto">
+                <p class="text-2xl font-bold text-gray-700">Region Evaluation <i class="fa-solid fa-arrow-right mx-2 text-blue-500"></i> Sequential Decision-Making</p>
+                <p class="text-lg text-gray-500 mt-2">The task shifts from choosing a candidate box to choosing how the current box should move.</p>
+            </div>
+        </div>
+
+        <!-- Slide 6: Main Idea: Let the Box Move -->
+        <div class="slide" id="slide-6">
+            <h2 class="text-4xl font-bold text-gray-800 mb-8 border-b-2 border-blue-500 pb-4 inline-block">Main Idea: Let the Bounding Box Move</h2>
+            <div class="flex-1 grid grid-cols-[1.25fr_0.75fr] gap-10 items-center pb-12">
+                <div class="paper-frame">
+                    <div class="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
+                        <span class="font-bold">Paper Figure 1</span>
+                        <span class="text-sm text-slate-300">attended regions -> actions -> trigger</span>
+                    </div>
+                    <img src="assets/caicedo/blog_A1-1.png" alt="Figure 1: Sequence of attended regions to localize the object" class="p-6 bg-white">
+                    <div class="figure-caption">
+                        The agent does not score a static list of boxes. It repeatedly observes a region, transforms the box, and stops with a trigger action.
+                    </div>
+                </div>
+                <div class="space-y-5">
+                    <div class="source-tag"><i class="fa-solid fa-file-lines"></i> Paper framing</div>
+                    <div class="metric-pill">
+                        <p class="text-sm font-bold text-blue-700 uppercase">Start</p>
+                        <p class="text-2xl font-black text-gray-900">whole scene / broad region</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-sm font-bold text-slate-600 uppercase">Loop</p>
+                        <p class="text-xl font-bold text-gray-800">observe -> action -> transformed box</p>
+                    </div>
+                    <div class="metric-pill bg-red-50 border-red-200">
+                        <p class="text-sm font-bold text-red-600 uppercase">End</p>
+                        <p class="text-xl font-bold text-gray-800">trigger when the box is tight enough</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Method Loop with RL Labels -->
+        <div class="slide" id="slide-7">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Method Loop: Observe -> Act -> Transform</h2>
+            <div class="flex-1 flex items-center justify-center relative">
+                <div class="w-[820px] h-[430px] relative">
+                    <!-- Top Left: State -->
+                    <div class="loop-node top-0 left-0">
+                        <div class="loop-card bg-gray-100 border-2 border-gray-400"><div class="absolute inset-4 border-2 border-red-500"></div></div>
+                        <h3 class="font-bold text-xl">Current Box</h3>
+                        <p class="text-sm text-blue-600 font-bold bg-blue-50 rounded py-1 mt-1">State</p>
+                    </div>
+                    <!-- Top Right: CNN / Q-Net -->
+                    <div class="loop-node top-0 right-0">
+                        <div class="loop-card bg-blue-100 border-2 border-blue-400"><i class="fa-solid fa-network-wired text-4xl text-blue-600"></i></div>
+                        <h3 class="font-bold text-xl">CNN + Q-network</h3>
+                        <p class="text-sm text-blue-600 font-bold bg-blue-50 rounded py-1 mt-1">Value Estimator</p>
+                    </div>
+                    <!-- Bottom Right: Action -->
+                    <div class="loop-node bottom-0 right-0">
+                        <div class="loop-card bg-green-100 border-2 border-green-400"><i class="fa-solid fa-arrows-up-down-left-right text-4xl text-green-600"></i></div>
+                        <h3 class="font-bold text-xl">Action</h3>
+                        <p class="text-sm text-blue-600 font-bold bg-blue-50 rounded py-1 mt-1">Box Transformation</p>
+                    </div>
+                    <!-- Bottom Left: New Box -->
+                    <div class="loop-node bottom-0 left-0">
+                        <div class="loop-card bg-gray-100 border-2 border-gray-400"><div class="absolute inset-8 border-2 border-red-500"></div></div>
+                        <h3 class="font-bold text-xl">New Box</h3>
+                        <p class="text-sm text-blue-600 font-bold bg-blue-50 rounded py-1 mt-1">Reward (IoU change)</p>
+                    </div>
+                    
+                    <!-- Arrows -->
+                    <i class="fa-solid fa-arrow-right loop-arrow" style="top: 3rem; left: 23.2rem;"></i>
+                    <i class="fa-solid fa-arrow-down loop-arrow" style="top: 11.7rem; right: 4.75rem;"></i>
+                    <i class="fa-solid fa-arrow-left loop-arrow" style="bottom: 3.9rem; right: 23.2rem;"></i>
+                    <i class="fa-solid fa-arrow-up loop-arrow" style="bottom: 12.2rem; left: 4.75rem;"></i>
+                    
+                    <!-- Center Stop -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                        <div class="w-20 h-20 bg-red-100 border-2 border-red-500 rounded-full flex items-center justify-center mx-auto mb-2"><i class="fa-solid fa-stop text-2xl text-red-600"></i></div>
+                        <h3 class="font-bold text-lg">Trigger</h3>
+                        <p class="text-xs text-gray-500">Stop search</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Action Space -->
+        <div class="slide" id="slide-8">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">What Can the Agent Do?</h2>
+            <div class="flex h-full gap-12">
+                <div class="w-[70%] flex items-center">
+                    <div class="paper-frame w-full">
+                        <img src="assets/caicedo/blog_A1-2.png" alt="Figure 2: localization actions" class="p-8">
+                        <div class="figure-caption">Figure 2 from the paper: eight box transformations plus one trigger action define the MDP action space.</div>
+                    </div>
+                </div>
+                <div class="w-[30%] flex flex-col justify-center">
+                    <h3 class="text-3xl font-bold mb-6">4 degrees of freedom</h3>
+                    <div class="space-y-4 text-lg text-gray-700 mb-8">
+                        <p><i class="fa-solid fa-arrows-left-right text-blue-500 mr-3 w-6"></i> horizontal / vertical moves</p>
+                        <p><i class="fa-solid fa-up-right-and-down-left-from-center text-green-500 mr-3 w-6"></i> scale bigger or smaller</p>
+                        <p><i class="fa-solid fa-ruler-combined text-purple-500 mr-3 w-6"></i> aspect-ratio adjustment</p>
+                        <p><i class="fa-solid fa-circle-stop text-red-500 mr-3 w-6"></i> trigger detection</p>
+                    </div>
+                    <div class="bg-blue-50 p-5 rounded border-l-4 border-blue-500">
+                        <p class="text-gray-700 font-medium">The action set is intentionally discrete, so the policy learns a search strategy rather than continuous box regression.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Reward Design -->
+        <div class="slide" id="slide-9">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Reward: Did the Box Get Closer?</h2>
+            <div class="flex flex-col h-full justify-center pb-16">
+                <div class="flex justify-between items-center px-12 mb-16">
+                    <!-- Step 1 -->
+                    <div class="flex flex-col items-center">
+                        <div class="w-48 h-48 bg-gray-100 border-2 border-gray-300 rounded relative mb-4">
+                            <div class="absolute top-4 left-4 w-24 h-24 border-4 border-green-500"></div> <!-- GT -->
+                            <div class="absolute bottom-4 right-4 w-32 h-32 border-4 border-red-500"></div> <!-- Agent -->
+                        </div>
+                        <h3 class="font-bold text-xl">Current Box vs GT</h3>
+                    </div>
+                    <i class="fa-solid fa-arrow-right text-4xl text-gray-400"></i>
+                    <!-- Step 2 -->
+                    <div class="flex flex-col items-center">
+                        <div class="w-48 h-48 bg-gray-100 border-2 border-gray-300 rounded relative mb-4">
+                            <div class="absolute top-4 left-4 w-24 h-24 border-4 border-green-500"></div> <!-- GT -->
+                            <div class="absolute top-8 left-8 w-24 h-24 border-4 border-red-500 bg-yellow-400 bg-opacity-50"></div> <!-- Agent moved -->
+                        </div>
+                        <h3 class="font-bold text-xl">New Box after Action</h3>
+                    </div>
+                    <i class="fa-solid fa-arrow-right text-4xl text-gray-400"></i>
+                    <!-- Step 3 -->
+                    <div class="flex flex-col items-center">
+                        <div class="w-48 h-48 bg-blue-50 border-2 border-blue-300 rounded flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-coins text-6xl text-yellow-500"></i>
+                        </div>
+                        <h3 class="font-bold text-xl">IoU Improved? Reward</h3>
+                    </div>
+                </div>
+                <div class="bg-white border border-gray-200 shadow-md rounded-xl p-8 mx-12">
+                    <ul class="text-2xl space-y-4">
+                        <li><i class="fa-solid fa-thumbs-up text-green-500 mr-4 w-8"></i> If IoU improves <i class="fa-solid fa-arrow-right mx-2 text-gray-400"></i> <span class="font-bold text-green-600">Positive Reward (+1)</span></li>
+                        <li><i class="fa-solid fa-thumbs-down text-red-500 mr-4 w-8"></i> If IoU decreases <i class="fa-solid fa-arrow-right mx-2 text-gray-400"></i> <span class="font-bold text-red-600">Negative Reward (-1)</span></li>
+                        <li><i class="fa-solid fa-flag-checkered text-blue-500 mr-4 w-8"></i> If trigger is correct <i class="fa-solid fa-arrow-right mx-2 text-gray-400"></i> <span class="font-bold text-blue-600">Terminal Reward (+3)</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Why DQN Here? -->
+        <div class="slide" id="slide-10">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Why DQN? Because the State Is Visual</h2>
+            <div class="flex h-full gap-12 pb-10">
+                <div class="w-[62%] flex items-center">
+                    <div class="paper-frame w-full">
+                        <img src="assets/caicedo/blog_A1-4.png" alt="Figure 3: QNetwork architecture" class="p-8">
+                        <div class="figure-caption">Figure 3 from the paper: a warped 224px input region is encoded by a pre-trained CNN, then combined with action history to score 9 actions.</div>
+                    </div>
+                </div>
+                <div class="w-[38%] flex flex-col justify-center gap-5">
+                    <div class="metric-pill">
+                        <p class="text-sm font-bold text-blue-700 uppercase">Visual state</p>
+                        <p class="text-2xl font-black text-gray-900">CNN fc6 features</p>
+                        <p class="text-gray-600 mt-1">4096-dimensional observation vector</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-sm font-bold text-slate-600 uppercase">Memory</p>
+                        <p class="text-xl font-bold text-gray-800">action history appended to the state</p>
+                    </div>
+                    <div class="metric-pill bg-green-50 border-green-200">
+                        <p class="text-sm font-bold text-green-700 uppercase">Output</p>
+                        <p class="text-xl font-bold text-gray-800">Q-values for 9 possible actions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Experimental Questions -->
+        <div class="slide" id="slide-11">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">What Should the Experiments Prove?</h2>
+            <div class="grid grid-cols-3 gap-8 h-full pb-16">
+                <div class="bg-blue-600 text-white rounded-xl shadow-xl p-8 flex flex-col items-center text-center transform scale-105">
+                    <i class="fa-solid fa-bolt text-6xl mb-6 text-yellow-300"></i>
+                    <h3 class="text-3xl font-black mb-4">Efficiency</h3>
+                    <p class="text-xl font-medium">Can it localize with fewer evaluated regions?</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-8 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-crosshairs text-6xl mb-6 text-red-500"></i>
+                    <h3 class="text-3xl font-bold mb-4 text-gray-800">Accuracy</h3>
+                    <p class="text-xl text-gray-600">Does it still reach good boxes?</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-8 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-brain text-6xl mb-6 text-purple-500"></i>
+                    <h3 class="text-3xl font-bold mb-4 text-gray-800">Policy Contribution</h3>
+                    <p class="text-xl text-gray-600">Is learned search better than naive search?</p>
+                </div>
+            </div>
+            <div class="text-center mt-auto bg-gray-100 py-4 rounded-lg">
+                <p class="text-xl font-bold text-gray-700">The experiments ask whether the agent can still localize well while evaluating far fewer regions.</p>
+            </div>
+        </div>
+
+        <!-- Slide 12: Why These Baselines Matter -->
+        <div class="slide" id="slide-12">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Baselines Are Not Decoration</h2>
+            <div class="flex-1 flex flex-col justify-center pb-10">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 text-xl">
+                            <th class="p-4 border-b-2 border-gray-300 w-1/3">Baseline</th>
+                            <th class="p-4 border-b-2 border-gray-300 w-2/3 text-blue-700">What it tests</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-lg">
+                        <tr class="border-b border-gray-200">
+                            <td class="p-4 font-bold flex items-center"><i class="fa-solid fa-border-all text-gray-400 mr-3"></i> Sliding window</td>
+                            <td class="p-4 text-blue-800 font-medium">Can active search avoid exhaustive scanning?</td>
+                        </tr>
+                        <tr class="border-b border-gray-200 bg-gray-50">
+                            <td class="p-4 font-bold flex items-center"><i class="fa-solid fa-object-group text-gray-400 mr-3"></i> Region proposal</td>
+                            <td class="p-4 text-blue-800 font-medium">Can policy replace external candidate generation?</td>
+                        </tr>
+                        <tr class="border-b border-gray-200">
+                            <td class="p-4 font-bold flex items-center"><i class="fa-solid fa-dice text-gray-400 mr-3"></i> Random / heuristic search</td>
+                            <td class="p-4 text-blue-800 font-medium">Is learned policy meaningful?</td>
+                        </tr>
+                        <tr class="border-b border-gray-200 bg-gray-50">
+                            <td class="p-4 font-bold flex items-center"><i class="fa-solid fa-chart-bar text-gray-400 mr-3"></i> Detection baselines</td>
+                            <td class="p-4 text-blue-800 font-medium">Does efficiency destroy accuracy?</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Slide 13: Key Result: Fewer Regions -->
+        <div class="slide" id="slide-13">
+            <h2 class="text-4xl font-bold text-gray-800 mb-8 border-b-2 border-blue-500 pb-4 inline-block">Detection Result: Use the Actual Table</h2>
+            <div class="flex-1 flex flex-col justify-center gap-6 pb-10">
+                <div class="paper-frame">
+                    <img src="assets/caicedo/table1_results.png" alt="Table 1: Average Precision comparison on Pascal VOC 2007" class="p-4">
+                    <div class="figure-caption">Table 1 from the paper: per-category AP on Pascal VOC 2007. R-CNN is strongest overall, but it relies on object proposals; the agent is compared against non-proposal CNN localization baselines.</div>
+                </div>
+                <div class="grid grid-cols-4 gap-4 text-center">
+                    <div class="metric-pill">
+                        <p class="text-4xl font-black text-blue-700">46.1</p>
+                        <p class="font-bold text-gray-700">Ours AAR MAP</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-4xl font-black text-slate-700">40.2</p>
+                        <p class="font-bold text-gray-700">Regionlets MAP</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-4xl font-black text-slate-700">30.5</p>
+                        <p class="font-bold text-gray-700">DetNet MAP</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-4xl font-black text-slate-700">54.2</p>
+                        <p class="font-bold text-gray-700">R-CNN MAP</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 14: Result Interpretation -->
+        <div class="slide" id="slide-14">
+            <h2 class="text-4xl font-bold text-gray-800 mb-8 border-b-2 border-blue-500 pb-4 inline-block">Efficiency Result: How Many Actions?</h2>
+            <div class="flex h-full gap-12 pb-10">
+                <div class="w-[58%] flex items-center">
+                    <div class="paper-frame w-full">
+                        <img src="assets/caicedo/blog_A1-8.png" alt="Figure 5: Distribution of number of actions required" class="p-6">
+                        <div class="figure-caption">Figure 5 from the paper: distribution of detections explicitly triggered by the agent as a function of action count.</div>
+                    </div>
+                </div>
+                <div class="w-[42%] flex flex-col justify-center space-y-5">
+                    <div class="metric-pill">
+                        <p class="text-sm font-bold text-blue-700 uppercase">Median</p>
+                        <p class="text-5xl font-black text-blue-700">11</p>
+                        <p class="text-gray-700 font-medium">actions, so roughly 11 processed regions</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-sm font-bold text-slate-600 uppercase">Mean</p>
+                        <p class="text-4xl font-black text-slate-800">25.6</p>
+                        <p class="text-gray-600">actions across 5,147 detections</p>
+                    </div>
+                    <div class="bg-blue-50 p-6 rounded-xl border-l-4 border-blue-500">
+                        <p class="text-xl text-gray-800">This is the real contribution signal: not best absolute AP, but active localization with very few evaluated regions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 15: Strengths and Limitations -->
+        <div class="slide" id="slide-15">
+            <h2 class="text-4xl font-bold text-gray-800 mb-8 border-b-2 border-blue-500 pb-4 inline-block">Qualitative Result: What the Agent Actually Sees</h2>
+            <div class="flex h-full gap-10 pb-10">
+                <div class="w-[62%] flex items-center">
+                    <div class="paper-frame w-full">
+                        <img src="assets/caicedo/blog_A1-5.png" alt="Qualitative search sequences from the paper" class="p-4" style="height: 405px; object-fit: contain; background: #fff;">
+                        <div class="figure-caption">Paper qualitative examples: each row shows attended regions and selected actions before the trigger.</div>
+                    </div>
+                </div>
+                <div class="w-[38%] flex flex-col justify-center gap-5">
+                    <div class="metric-pill bg-green-50 border-green-200">
+                        <p class="text-sm font-bold text-green-700 uppercase">Strength</p>
+                        <p class="text-xl font-bold text-gray-800">The search path is image-dependent, not a fixed sliding-window sweep.</p>
+                    </div>
+                    <div class="metric-pill bg-orange-50 border-orange-200">
+                        <p class="text-sm font-bold text-orange-700 uppercase">Limitation</p>
+                        <p class="text-xl font-bold text-gray-800">Discrete moves can still miss small or cluttered objects.</p>
+                    </div>
+                    <div class="metric-pill bg-white border-gray-200">
+                        <p class="text-sm font-bold text-slate-600 uppercase">Best reading</p>
+                        <p class="text-xl font-bold text-gray-800">A 2015 efficiency argument for learned active search, not a modern detector replacement.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 16: Final Takeaway -->
+        <div class="slide" id="slide-16">
+            <h2 class="text-4xl font-bold text-gray-800 mb-12 border-b-2 border-blue-500 pb-4 inline-block">Final Takeaway</h2>
+            <div class="flex-1 flex flex-col items-center justify-center text-center px-16 relative pb-16">
+                <div class="space-y-8 mb-20">
+                    <p class="text-2xl text-gray-600">Previous localization methods evaluated many candidate regions.</p>
+                    <p class="text-3xl font-bold text-blue-800">This paper reformulates localization as <span class="bg-blue-100 px-2 rounded">policy-guided box transformation</span>.</p>
+                    <p class="text-xl text-gray-600">The result is efficient active search, but limited by class-specific policy, discrete actions, and simplified reward.</p>
+                </div>
+
+                <div class="absolute bottom-10 right-10 opacity-50">
+                    <div class="w-24 h-24 bg-gray-200 rounded relative"><div class="absolute inset-2 border-4 border-green-500"></div></div>
+                </div>
+                
+                <div class="absolute bottom-0 text-2xl font-black text-blue-900 mt-8">
+                    Region Evaluation <i class="fa-solid fa-arrow-right mx-2"></i> Policy-Guided Sequential Search
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation UI -->
+        <div class="nav-hint"><i class="fa-solid fa-keyboard mr-2"></i>Use Left/Right Arrow Keys</div>
+        <div class="slide-number" id="slide-counter">1 / 16</div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 16;
+
+        const requestedSlide = Number(
+            new URLSearchParams(window.location.search).get('slide') ||
+            window.location.hash.replace('#slide-', '').replace('#', '')
+        );
+        if (requestedSlide >= 1 && requestedSlide <= totalSlides) {
+            currentSlide = requestedSlide;
+        }
+
+        function updateSlide() {
+            document.querySelectorAll('.slide').forEach(slide => {
+                slide.classList.remove('active');
+            });
+            document.getElementById(`slide-${currentSlide}`).classList.add('active');
+            document.getElementById('slide-counter').innerText = `${currentSlide} / ${totalSlides}`;
+        }
+
+        updateSlide();
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                if (currentSlide < totalSlides) {
+                    currentSlide++;
+                    updateSlide();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentSlide > 1) {
+                    currentSlide--;
+                    updateSlide();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
