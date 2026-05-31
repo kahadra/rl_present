@@ -10,21 +10,21 @@ Final Korean recap: about 3 minutes
 
 Hello everyone. I am Chunwoong Park, a master's student, and today I will be presenting the paper "Active Object Localization with Deep Reinforcement Learning."
 
-This paper does not treat object localization only as the prediction of a final bounding box. In ordinary localization, the goal is to find where an object is in an image, usually by placing a box around it. In this paper, that box is reinterpreted as part of the search process. Reinforcement learning is the main tool used to formulate and solve the problem from that viewpoint.
+This paper does not treat object localization only as the prediction of a final bounding box. In ordinary localization, the goal is to find where an object is in an image, usually by placing a box around it. In this paper, that box is reinterpreted as part of the search process. Reinforcement learning is the main tool used to frame and solve the problem from that viewpoint.
 
 ### Slide 2 - Presentation Outline
 
 I will explain the paper in five connected steps.
 
-First, I will explain how existing localization methods approached the problem. Second, I will look at the characteristics of representative approaches in that tradition. Third, I will identify the point that motivates this paper. Fourth, I will explain how the proposed method reformulates localization as a reinforcement learning problem. Finally, I will discuss the experiments, strengths, and limitations.
+First, I will explain how existing localization methods approached the problem. Second, I will look at the main features of common approaches in that tradition. Third, I will identify the point that motivates this paper. Fourth, I will explain how the proposed method turns localization into a reinforcement learning problem. Finally, I will discuss the experiments, strengths, and limitations.
 
 ### Slide 3 - Before This Paper: Localization as Region Evaluation
 
-Before this paper, many localization systems followed a region evaluation pipeline. This pipeline can be understood as a series of fairly intuitive steps. First, the system starts from an image. Second, it creates many possible regions where an object might be located. Third, each region is represented using visual features. Fourth, a classifier or scoring function evaluates those regions. Finally, the system selects the highest-scoring boxes as detections.
+Before this paper, many localization systems followed a region evaluation pipeline. This pipeline can be understood as a series of simple steps. First, the system starts from an image. Second, it creates many possible regions where an object might be located. Third, each region is represented using visual features. Fourth, a classifier or scoring function evaluates those regions. Finally, the system selects the highest-scoring boxes as detections.
 
 Each part of this pipeline has a clear role. Candidate boxes turn the spatial problem into a set of regions that can be checked. Feature extraction converts image content into a representation that a model can compare. Classification or ranking tells us which regions look like the target object. Post-processing, such as selecting high-confidence boxes and suppressing duplicates, turns many local judgments into a final detection result.
 
-This approach is natural because localization can be understood as finding the best region in an image. It is also modular. Researchers can improve the candidate generation step, replace the feature extractor, train a better classifier, or refine the post-processing stage. That modularity made the pipeline practical and easy to extend.
+This approach is natural because localization can be understood as finding the best region in an image. It is also built in separate parts. Researchers can improve the candidate generation step, replace the feature extractor, train a better classifier, or refine the post-processing stage. That structure made the pipeline practical and easy to extend.
 
 This gives the old pipeline a strong engineering logic: it breaks a hard spatial search problem into many smaller region evaluation problems.
 
@@ -32,7 +32,7 @@ This gives the old pipeline a strong engineering logic: it breaks a hard spatial
 
 The paper is related to three common localization strategies.
 
-The first is sliding window search. It moves a window across the image at different positions, scales, and sometimes aspect ratios. Its advantage is coverage. Because the search pattern is systematic, the method can examine the image in a very controlled way. It does not need a separate proposal algorithm, and conceptually it is easy to understand.
+The first is sliding window search. It moves a window across the image at different positions, scales, and sometimes aspect ratios. Its advantage is coverage. Because the search pattern is organized in advance, the method can examine the image in a very controlled way. It does not need a separate proposal algorithm, and the idea is easy to understand.
 
 The second is region proposal. Instead of checking every possible window, a proposal method tries to generate a smaller set of regions that are likely to contain objects. Its advantage is focus. It can reduce the number of boxes that the final detector has to evaluate, while still keeping regions that look object-like.
 
@@ -44,11 +44,11 @@ These strategies are different, but they all treat object localization as a spat
 
 These existing approaches share one important limitation. The search behavior is usually fixed, outsourced, or compressed into a single prediction.
 
-In sliding window search, the order and pattern of search are designed beforehand. In region proposal methods, the final detector depends heavily on the proposed regions it receives. In one-shot regression, the model may jump directly to a box, but it does not explicitly model the intermediate process of moving closer to the object. So these methods have strengths, but they do not fully answer a dynamic question: from the current region, what should the system do next?
+In sliding window search, the order and pattern of search are designed beforehand. In region proposal methods, the final detector depends heavily on the proposed regions it receives. In one-shot regression, the model may jump directly to a box, but it does not clearly model the middle steps of moving closer to the object. So these methods have strengths, but they do not fully answer a moving question: from the current region, what should the system do next?
 
-This is the meaning of "too many regions, too little decision-making." Localization has often been treated as evaluating, proposing, or predicting boxes, while the process of sequentially deciding how to search has received less attention.
+This is the meaning of "too many regions, too little decision-making." Localization has often been treated as evaluating, proposing, or predicting boxes, while the process of deciding the search step by step has received less attention.
 
-So this paper shifts the focus. Instead of asking only, "Which candidate box is correct?", it asks, "What action should be taken next from the current box?" Under that formulation, the detector is no longer only a scoring function. It becomes an agent that must make decisions over time.
+So this paper shifts the focus. Instead of asking only, "Which candidate box is correct?", it asks, "What action should be taken next from the current box?" In that setup, the detector is no longer only a scoring function. It becomes an agent that must make decisions over time.
 
 From a reinforcement learning viewpoint, this turns localization from a problem of choosing a box into a problem of choosing actions over time.
 
@@ -68,39 +68,39 @@ The method can be understood as a repeated loop: observe, act, and transform.
 
 First, the agent observes the current box. Second, it chooses a decision that should lead to a better box. Third, that decision changes the current box into a new one. Then the agent observes again and repeats the process.
 
-This loop continues until a stopping decision is made. During training, the agent can receive feedback about whether its choices were useful. During inference, the ground truth is not available, so the agent must rely on the policy it has learned.
+This loop continues until a stopping decision is made. During training, the agent can receive feedback about whether its choices were useful. During testing, the ground truth is not available, so the agent must rely on the policy it has learned.
 
-Each decision affects the next observation. A bad action may move the box away from the object, while a good action may make the next state more informative. This is why reinforcement learning fits the formulation.
+Each decision affects the next observation. A bad action may move the box away from the object, while a good action may make the next state more useful. This is why reinforcement learning fits this setup.
 
 ### Slide 8 - What Can the Agent Do?
 
-The action space is intentionally discrete and limited.
+The action space uses a fixed and limited set of actions.
 
 The agent can move the box horizontally or vertically. It can scale the box bigger or smaller. It can adjust the aspect ratio. It can also trigger the final detection. In total, the paper defines eight transformation actions plus one trigger action.
 
-Each transformation is applied relative to the current box. The model is not predicting a completely new set of coordinates at every step. It is choosing how to modify the current box, so the search process becomes visible as a sequence of small decisions.
+Each transformation is applied based on the current box. The model is not predicting a completely new set of coordinates at every step. It is choosing how to modify the current box, so the search process becomes visible as a series of small decisions.
 
-This design has two advantages. First, it makes the learning problem simpler because the agent chooses from a fixed set of actions. Second, it makes the behavior interpretable because every step can be described as a clear movement of the box.
+This design has two advantages. First, it makes the learning problem simpler because the agent chooses from a fixed set of actions. Second, it makes the behavior easy to explain because every step can be described as a clear movement of the box.
 
-But there is also a trade-off. Because the actions are discrete, the model may not have enough precision for small objects, highly cluttered scenes, or objects that require fine boundary adjustment.
+But there is also a trade-off. Because the choices come from a fixed set, the model may not have enough precision for small objects, busy scenes, or objects that require fine boundary adjustment.
 
 ### Slide 9 - Reward: Did the Box Get Closer?
 
-The reward is based on IoU, which stands for Intersection over Union. IoU measures the overlap between the predicted box and the ground-truth box. Intuitively, if the overlap becomes larger, the box has moved closer to the object.
+The reward is based on IoU, which stands for Intersection over Union. IoU measures the overlap between the predicted box and the ground-truth box. Simply put, if the overlap becomes larger, the box has moved closer to the object.
 
-If an action increases IoU, the agent receives a positive reward. If an action decreases IoU, the agent receives a negative reward. If the agent triggers detection at the correct time, it receives a larger terminal reward.
+If an action increases IoU, the agent receives a positive reward. If an action decreases IoU, the agent receives a negative reward. If the agent triggers detection at the correct time, it receives a larger final reward.
 
-This reward is directly aligned with the goal of localization. A good action moves the box closer to the ground truth, and a bad action moves it away. That gives the agent a clear signal for learning useful box movements.
+This reward directly matches the goal of localization. A good action moves the box closer to the ground truth, and a bad action moves it away. That gives the agent a clear signal for learning useful box movements.
 
 ### Slide 10 - Why DQN? Because the State Is Visual
 
 The paper uses DQN, or Deep Q-Network, because the state is visual. The agent has to understand the image content inside the current box and decide which action is likely to improve localization.
 
-The current region is resized into a fixed input size, and a pre-trained CNN extracts visual features. The fc6 features become a 4096-dimensional observation vector.
+The current region is resized into a fixed input size, and a pre-trained CNN extracts visual features. The fc6 features become an observation vector with 4096 values.
 
 The method also includes action history. The current crop alone may not tell the agent how it arrived there, so recent movements provide useful memory.
 
-The Q-network outputs Q-values for the possible actions. A Q-value is an estimate of the long-term benefit of choosing a particular action in the current state. The agent chooses the action with the highest value and continues the search.
+The Q-network outputs Q-values for the possible actions. A Q-value is a guess about the long-term benefit of choosing a certain action in the current state. The agent chooses the action with the highest value and continues the search.
 
 This is the technical bridge between computer vision and reinforcement learning: CNN features describe the visual state, and Q-learning selects the next spatial action.
 
@@ -108,19 +108,23 @@ This is the technical bridge between computer vision and reinforcement learning:
 
 The experiments cannot be judged only by a single detection score.
 
-The proposed method is making a broader claim about how localization can be formulated. So the evaluation also has to be broader. We need to see whether the method reaches reasonable detections, whether the search process is actually shorter, and whether the behavior comes from a learned policy rather than chance.
+We need to look at the three points shown on the slide. The first one is detection quality. Even if the problem setup is new, the final boxes still have to be accurate enough.
 
-So the experiments should be read as a test of the whole idea, not only as a leaderboard comparison.
+The second one is search cost. The paper claims that the agent can avoid evaluating a large number of candidate regions, so we need to check whether the number of processed regions actually goes down.
+
+The third one is learned behavior. It is not enough that the box moves step by step. We need to know whether the movement comes from a learned policy rather than random or rule-based search.
+
+So the experiments should be read as a test of detection quality, search cost, and learned behavior together, not only as a MAP score ranking.
 
 ### Slide 12 - Why These Baselines?
 
-The comparisons in this paper are arranged around four questions: search cost, dependence on proposal generation, the value of learning a policy, and detection accuracy.
+The comparisons in this paper are built around four questions: search cost, how much the method relies on proposal generation, the value of learning a policy, and detection accuracy.
 
-Sliding window is the most direct form of spatial search. If the proposed method can detect objects while looking at far fewer regions, then the comparison supports the claim that active search can reduce exhaustive scanning.
+Sliding window is the most direct form of spatial search. If the proposed method can detect objects while looking at far fewer regions, then the comparison supports the claim that active search can reduce full-image scanning.
 
-Region proposal methods compress the candidate space using an external proposal stage. Comparing against them shows whether an agent that moves the box by itself can reduce dependence on a separate candidate-generation mechanism.
+Region proposal methods compress the candidate space using an external proposal stage. Comparing against them shows whether an agent that moves the box by itself can reduce dependence on a separate proposal step.
 
-Random or heuristic search asks whether simply moving a box sequentially is enough, or whether the learned policy actually matters. Detection baselines then check whether the method keeps reasonable accuracy instead of gaining efficiency by giving up detection quality.
+Random or rule-based search asks whether simply moving a box step by step is enough, or whether the learned policy actually matters. Detection baselines then check whether the method keeps enough accuracy instead of gaining efficiency by giving up detection quality.
 
 With that structure, the result table is not just a ranking. It helps us see which parts of the proposed method are strong and which parts are limited.
 
@@ -128,59 +132,59 @@ With that structure, the result table is not just a ranking. It helps us see whi
 
 The main detection result is reported on Pascal VOC 2007. The proposed method, Ours AAR, reaches 46.1 MAP. Regionlets reaches 40.2, DetNet reaches 30.5, and R-CNN reaches 54.2.
 
-The first thing to notice is that R-CNN has the highest MAP. So the correct interpretation is not that this paper beats all detection methods. R-CNN is stronger in absolute detection performance.
+The first thing to notice is that R-CNN has the highest MAP. So the correct reading is not that this paper beats all detection methods. R-CNN is stronger in raw detection performance.
 
-This table corresponds to the detection baselines and the region proposal comparison from Slide 12. Regionlets, DetNet, and R-CNN give us reference points for judging accuracy.
+This table matches the detection baselines and the region proposal comparison from Slide 12. Regionlets, DetNet, and R-CNN give us reference points for judging accuracy.
 
-The gap with R-CNN shows the limitation of the proposed method. Since R-CNN is a strong region-proposal-based detector, it also shows that proposal-based detection is still stronger in absolute accuracy. On the other hand, the higher MAP than Regionlets and DetNet shows that active search does not simply sacrifice detection quality.
+The gap with R-CNN shows the limitation of the proposed method. Since R-CNN is a strong detector based on region proposals, it also shows that detection based on proposals is still stronger in raw accuracy. On the other hand, the higher MAP than Regionlets and DetNet shows that active search does not simply give up detection quality.
 
-So the proposed method is not the strongest detector overall, but sequential box transformation can still reach meaningful detection performance.
+So the proposed method is not the strongest detector overall, but step-by-step box transformation can still reach meaningful detection performance.
 
 ### Slide 14 - Efficiency Result: How Many Actions?
 
-The efficiency result shows why the method is meaningful beyond the detection table.
+The efficiency result shows why the method matters beyond the detection table.
 
 The median number of actions is 11. This means that a typical successful detection processes roughly 11 regions. The mean is 25.6 actions across 5,147 detections.
 
 The difference between the median and the mean suggests that some difficult images require longer searches.
 
-This result connects directly to the sliding window comparison from Slide 12. A sliding window method densely scans the image, while this method sequentially chooses the regions it needs.
+This result connects directly to the sliding window comparison from Slide 12. A sliding window method scans the image densely, while this method chooses the regions it needs step by step.
 
-It also matters for the random or heuristic search comparison. The point is not only that the box moves sequentially, but that the policy learns which direction to move.
+It also matters for the random or rule-based search comparison. The point is not only that the box moves step by step, but that the policy learns which direction to move.
 
 ### Slide 15 - Qualitative Result: What the Agent Actually Sees
 
-The qualitative results help us understand the behavior behind the numbers.
+The visual results help us understand the behavior behind the numbers.
 
 The search path changes depending on the image. The agent does not follow a fixed scanning pattern. It chooses movements based on what it currently sees, and the sequence of attended regions can be inspected step by step.
 
-This interpretability is a strength. We can see the model's search process instead of only seeing a final box. That makes the method easier to analyze.
+This is a strength because the behavior is easy to explain. We can see the model's search process instead of only seeing a final box. That makes the method easier to analyze.
 
 For example, in some images the agent quickly moves toward the object, while in others it makes several adjustments before selecting the trigger action. This gives us information that a final detection score alone cannot show.
 
-So the qualitative result should be read as behavioral evidence for the learned policy. It shows that the model is not only producing a final box; it is making image-dependent spatial decisions before the trigger.
+So this visual result should be read as a sign of the learned policy in action. It shows that the model is not only producing a final box; it is making decisions that depend on the image before the trigger.
 
 ### Slide 16 - Limitations and Interpretation: What Can We Claim?
 
-Taken together, the results show that active localization can work. They do not show that this method beats every conventional detector in every respect.
+Taken together, the results show that active localization can work. They do not show that this method beats every standard detector in every respect.
 
-First, the absolute detection performance is not the best. R-CNN has a higher MAP in the reported table. So the contribution is not achieving the top detection score. The contribution is showing that learned actions can produce reasonable localization performance while using a much smaller search process.
+First, the raw detection score is not the best. R-CNN has a higher MAP in the reported table. So the contribution is not achieving the top detection score. The contribution is showing that learned actions can produce good enough localization performance while using a much smaller search process.
 
-Second, the action space is discrete. This makes the behavior interpretable, because each step can be described as a clear box movement. But it can also limit precision, especially for small objects, cluttered scenes, or cases that require fine boundary adjustment.
+Second, the action space uses a fixed set of actions. This makes the behavior easy to explain, because each step can be described as a clear box movement. But it can also limit precision, especially for small objects, busy scenes, or cases that require fine boundary adjustment.
 
-Third, the reward is strongly based on IoU change. IoU gives a clear signal for whether the box became closer to the ground truth, but it does not fully represent occlusion, context, class ambiguity, or the semantic difficulty of detection.
+Third, the reward is strongly based on IoU change. IoU gives a clear signal for whether the box became closer to the ground truth, but it does not fully represent hidden objects, context, class confusion, or cases where the visual meaning is unclear.
 
-For that reason, the best reading of this paper is conceptual and historical. It is not a direct replacement for modern object detectors. It is valuable because it shows that object localization can be formulated as sequential decision-making.
+For that reason, the best reading of this paper is as an important idea from an earlier stage of detection research. It is not a direct replacement for modern object detectors. It is valuable because it shows that object localization can be seen as step-by-step decision-making.
 
 ### Slide 17 - Final Takeaway
 
-To conclude, this paper changes the way localization is formulated.
+To conclude, this paper changes the way we frame localization.
 
-If previous methods mainly generated and evaluated candidate regions, this paper reformulates localization as policy-guided box transformation. The detector is no longer only a scoring function. It becomes an agent, and the box becomes something the agent controls before it becomes the final output.
+If previous methods mainly generated and evaluated candidate regions, this paper turns localization into box transformation guided by a policy. The detector is no longer only a scoring function. It becomes an agent, and the box becomes something the agent controls before it becomes the final output.
 
-The strengths are clear. First, the paper connects object localization in computer vision with sequential decision-making in reinforcement learning. Second, it shows that an agent can approach an object with a relatively small number of actions instead of evaluating a large set of candidate regions. Third, the movement of the box gives us an interpretable search process.
+The strengths are clear. First, the paper connects object localization in computer vision with step-by-step decision-making in reinforcement learning. Second, it shows that an agent can approach an object with a small number of actions instead of evaluating a large set of candidate regions. Third, the movement of the box gives us a search process that is easy to explain.
 
-The limitations are also clear. Its absolute MAP is lower than R-CNN in the reported table, and the discrete action space can limit precision for small objects or cluttered scenes. Also, because the reward is mostly based on IoU, it cannot fully capture context, class confusion, or other semantic difficulties in real detection.
+The limitations are also clear. Its MAP is lower than R-CNN in the reported table, and the fixed action set can limit precision for small objects or busy scenes. Also, because the reward is mostly based on IoU, it cannot fully capture context, class confusion, or other hard cases in real detection.
 
 So the best conclusion is not that this paper proposes the strongest detector. It shows a different way to think about localization: not only as a problem of scoring boxes, but as a decision-making process where the detector moves the box and decides when to stop.
 
