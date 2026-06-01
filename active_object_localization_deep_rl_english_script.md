@@ -16,7 +16,7 @@ In object localization, the goal is to find where an object is in an image, usua
 
 I will explain the paper in five parts.
 
-First, I will briefly review existing localization methods. Second, I will compare the main approaches before this paper. Third, I will explain the problem this paper focuses on. Fourth, I will describe the proposed reinforcement learning method. Finally, I will discuss the results, strengths, and limits.
+First, I will briefly review existing localization methods. Second, What is the main problem before this paper. Third, I will explain the New Idea this paper focuses on. Fourth, I will describe the results in this experiments. Finally, I will discuss the strengths, and limits.
 
 ### Slide 3 - Before This Paper: Localization as Region Evaluation
 
