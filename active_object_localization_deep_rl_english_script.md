@@ -180,7 +180,8 @@ The strengths are clear. It connects object localization with reinforcement lear
 
 The limitations are also clear. Its MAP is lower than R-CNN, the fixed action set can limit precision, and the IoU-based reward cannot cover every difficulty in real detection.
 
-So the best conclusion is not that this paper proposes the strongest detector. It shows a different view of localization: not only scoring boxes, but moving the box and deciding when to stop.
+Although this approach is no longer the dominant paradigm in object detection, it is meaningful as an early attempt to formulate object localization as a sequential decision-making problem using reinforcement learning.
+
 
 Thank you for listening.
 
