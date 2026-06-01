@@ -8,7 +8,7 @@ Final Korean recap: about 3 minutes
 
 ### Slide 1 - Title: Active Object Localization with Deep Reinforcement Learning
 
-Hello everyone. I am Chunwoong Park, a master's student, and today I will be presenting the paper "Active Object Localization with Deep Reinforcement Learning."
+Hello everyone. I am Chunwoong Park, a master's student, and today I will be presenting the 2015 paper "Active Object Localization with Deep Reinforcement Learning."
 
 In object localization, the goal is to find where an object is in an image, usually with a bounding box. This paper asks a slightly different question. Instead of predicting the final box at once, can a system move the box step by step until it reaches the object? Reinforcement learning is used to solve localization from that viewpoint.
 
